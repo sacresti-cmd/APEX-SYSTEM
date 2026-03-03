@@ -223,7 +223,6 @@
             else warning.classList.add('hidden');
         }
 
-        // 60 DAY EXPANDED TASKS
         const phaseTasks = {
             foundation: [
                 "Drink 4L Water (Flush bloat)",
@@ -288,23 +287,46 @@
             `).join('');
         }
 
-        // IMPROVED AI LOGIC
+        // STABLE API CALL LOGIC
         async function callGemini(prompt, imageData = null) {
             if (!apiKey) return "KEY_MISSING";
-            const model = "gemini-1.5-flash"; // Stable production model
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
             
-            const contents = [{ parts: [{ text: prompt }] }];
+            // Stable v1 endpoint for production reliability
+            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            const contents = [{ 
+                parts: [{ text: prompt }] 
+            }];
+
             if (imageData) {
-                contents[0].parts.push({ inlineData: { mimeType: "image/jpeg", data: imageData.split(',')[1] } });
+                const base64Data = imageData.split(',')[1];
+                contents[0].parts.push({ 
+                    inlineData: { 
+                        mimeType: "image/jpeg", 
+                        data: base64Data 
+                    } 
+                });
             }
 
             try {
-                const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents }) });
+                const response = await fetch(url, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ contents }) 
+                });
+
                 const data = await response.json();
-                if (data.error) return `Error: ${data.error.message}`;
-                return data.candidates?.[0]?.content?.parts?.[0]?.text || "No data received.";
-            } catch (e) { return "Network failure."; }
+
+                if (data.error) {
+                    console.error("Gemini API Error:", data.error);
+                    return `System Error: ${data.error.message}. Ensure your key is valid and the Generative Language API is enabled in Google Cloud.`;
+                }
+
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "Analysis complete. System standing by.";
+            } catch (e) {
+                console.error("Network Error:", e);
+                return "Connection lost. Re-verify API Key in System Access.";
+            }
         }
 
         document.getElementById('scanBtn').onclick = async () => {
@@ -316,7 +338,7 @@
             
             const reader = new FileReader();
             reader.onload = async (e) => {
-                const res = await callGemini("Analyze this face for physical optimization. Focus on: Skin health, Eye area muscle development, and Facial bloating. Provide 3 high-intensity technical tips to improve the 'mog' factor.", e.target.result);
+                const res = await callGemini("Analyze this face for physical optimization. Focus on: Skin health, Eye area muscle development, and Facial bloating. Provide 3 high-intensity technical tips to improve aesthetic appeal based on these traits.", e.target.result);
                 resDiv.innerText = res === "KEY_MISSING" ? "Vault Locked. Set Key." : res;
                 resDiv.classList.remove('hidden');
                 loader.classList.add('hidden');
